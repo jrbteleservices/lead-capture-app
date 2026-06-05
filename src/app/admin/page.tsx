@@ -32,23 +32,29 @@ export default function AdminDashboard() {
   }, []);
 
   const handleUpdate = async () => {
-    const { data: record } = await supabase
+    // 1. Fetch latest record
+    const { data: record, error: fetchError } = await supabase
       .from('websites')
       .select('site_data')
       .eq('subdomain', 'test-bpo')
       .single();
 
-    if (!record) return;
+    if (fetchError || !record) {
+      alert("Could not fetch current site data.");
+      return;
+    }
 
+    // 2. Update object while preserving existing keys
     const updatedData = {
       ...record.site_data,
       heroSection: {
         ...record.site_data.heroSection,
-        headline: headline,
-        subheadline: subheadline
+        headline: headline || record.site_data.heroSection.headline,
+        subheadline: subheadline || record.site_data.heroSection.subheadline
       }
     };
 
+    // 3. Update Supabase
     const { error } = await supabase
       .from('websites')
       .update({ site_data: updatedData })
@@ -65,20 +71,22 @@ export default function AdminDashboard() {
       <div className="mb-10 p-6 bg-slate-900 rounded border border-slate-800">
         <label className="block mb-2">Headline:</label>
         <input
-          className="bg-slate-800 text-white p-2 mb-4 w-full rounded"
+          className="bg-slate-800 text-white p-2 mb-4 w-full rounded border border-slate-700"
           value={headline}
           onChange={(e) => setHeadline(e.target.value)}
-          placeholder="Enter new headline" />
+          placeholder="Enter new headline" 
+        />
 
         <label className="block mb-2">Subheadline:</label>
         <input
-          className="bg-slate-800 text-white p-2 mb-4 w-full rounded"
+          className="bg-slate-800 text-white p-2 mb-4 w-full rounded border border-slate-700"
           value={subheadline}
-          onChange={(e) => setHeadline(e.target.value)}
-          placeholder="Enter new subheadline" />
+          onChange={(e) => setSubheadline(e.target.value)}
+          placeholder="Enter new subheadline" 
+        />
 
         <button
-          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 w-full font-bold"
           onClick={handleUpdate}
         >
           Update All Data
