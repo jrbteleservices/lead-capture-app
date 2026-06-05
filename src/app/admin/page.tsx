@@ -1,93 +1,117 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function LandingPage() {
-  const [formData, setFormData] = useState({ name: '', email: '', phone_number: '' });
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+export default function AdminDashboard() {
+  const [headline, setHeadline] = useState('');
+  const [subheadline, setSubheadline] = useState('');
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const TENANT_ID = '85e22b61-913a-4053-81f2-005cfb5c7bf5';
+  const tenantId = '85e22b61-913a-4053-81f2-005cfb5c7bf5';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Basic Client-Side Validation
-    if (!formData.email.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
+  useEffect(() => {
+    async function loadLeads() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Supabase Query Error:", error);
+      } else {
+        setLeads(data || []);
+      }
+      setLoading(false);
     }
 
-    setStatus('submitting');
-    setErrorMessage('');
+    loadLeads();
+  }, []);
+
+  const handleUpdate = async () => {
+    const { data: record } = await supabase
+      .from('websites')
+      .select('site_data')
+      .eq('subdomain', 'test-bpo')
+      .single();
+
+    if (!record) return;
+
+    const updatedData = {
+      ...record.site_data,
+      heroSection: {
+        ...record.site_data.heroSection,
+        headline: headline,
+        subheadline: subheadline
+      }
+    };
 
     const { error } = await supabase
-      .from('leads')
-      .insert([{ 
-        ...formData, 
-        tenant_id: TENANT_ID 
-      }]);
+      .from('websites')
+      .update({ site_data: updatedData })
+      .eq('subdomain', 'test-bpo');
 
-    if (error) {
-      console.error(error);
-      setErrorMessage('Something went wrong. Please try again.');
-      setStatus('error');
-    } else {
-      setStatus('success');
-      setFormData({ name: '', email: '', phone_number: '' });
-    }
+    if (error) alert("Update failed: " + error.message);
+    else alert("Updated successfully!");
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
-      <div className="max-w-md w-full bg-slate-900 p-8 rounded-xl shadow-lg border border-slate-800">
-        <h1 className="text-2xl font-bold text-white mb-6">Get Started</h1>
+    <div className="p-10 text-white min-h-screen bg-slate-950">
+      <h1 className="text-2xl font-bold mb-5">Admin Dashboard</h1>
+      
+      <div className="mb-10 p-6 bg-slate-900 rounded border border-slate-800">
+        <label className="block mb-2">Headline:</label>
+        <input
+          className="bg-slate-800 text-white p-2 mb-4 w-full rounded"
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Enter new headline" />
 
-        {status === 'success' ? (
-          <div  className="text-center text-green-400 py-8">
-            <p className="text-lg font-bold">Thank you!</p>
-            <p>We will be in touch soon.</p>
-            <button onClick={() => setStatus('idle')} className="mt-4 text-sm text-slate-400 underline">Submit another</button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              required
-              className="w-full p-3 bg-slate-800 rounded border border-slate-700 text-white focus:border-blue-500 outline-none"
-              placeholder="Your Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <input
-              required
-              type="email"
-              className="w-full p-3 bg-slate-800 rounded border border-slate-700 text-white focus:border-blue-500 outline-none"
-              placeholder="Your Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-            <input
-              required
-              type="tel"
-              className="w-full p-3 bg-slate-800 rounded border border-slate-700 text-white focus:border-blue-500 outline-none"
-              placeholder="Phone Number"
-              value={formData.phone_number}
-              onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-            />
-            
-            {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
-            
-            <button 
-              disabled={status === 'submitting'}
-              type="submit"
-              className="w-full bg-blue-600 py-3 rounded font-bold text-white hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {status === 'submitting' ? 'Submitting...' : 'Submit'}
-            </button>
-          </form>
-        )}
+        <label className="block mb-2">Subheadline:</label>
+        <input
+          className="bg-slate-800 text-white p-2 mb-4 w-full rounded"
+          value={subheadline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Enter new subheadline" />
+
+        <button
+          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+          onClick={handleUpdate}
+        >
+          Update All Data
+        </button>
       </div>
-    </main>
+
+      <div className="mt-10 p-6 bg-slate-900 rounded border border-slate-800">
+        <h2 className="text-xl font-bold mb-4 text-white">Recent Leads</h2>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-slate-700 text-slate-400">
+              <th className="p-2">Name</th>
+              <th className="p-2">Email</th>
+              <th className="p-2">Phone</th>
+              <th className="p-2">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} className="p-2 text-center">Loading...</td></tr>
+            ) : (
+              leads.map((lead) => (
+                <tr key={lead.id} className="border-b border-slate-800">
+                  <td className="p-2">{lead.name}</td>
+                  <td className="p-2">{lead.email}</td>
+                  <td className="p-2">{lead.phone_number || 'N/A'}</td>
+                  <td className="p-2">{new Date(lead.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
