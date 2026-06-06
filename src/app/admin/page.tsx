@@ -78,7 +78,6 @@ export default function AdminDashboard() {
           className="bg-slate-800 text-white p-3 mb-4 w-full rounded border border-slate-700 focus:border-blue-500 outline-none"
           value={subheadline}
           // FIXED: This now correctly sets subheadline state
-          onChange={(e) => setSubheadline(e.target.value)}
           placeholder="Enter new subheadline" 
         />
 
