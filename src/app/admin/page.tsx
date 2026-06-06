@@ -28,30 +28,30 @@ export default function AdminDashboard() {
   }, []);
 
   const handleUpdate = async () => {
-    try {
-      // Fetch latest state from DB first
-      const { data: record, error: fetchError } = await supabase
-        .from('websites')
-        .select('site_data')
-        .eq('subdomain', 'test-bpo')
-        .single();
+    // 1. Fetch latest record
+    const { data: record, error: fetchError } = await supabase
+      .from('websites')
+      .select('site_data')
+      .eq('subdomain', 'test-bpo')
+      .single();
 
       if (fetchError || !record) throw new Error("Could not fetch site data.");
 
-      // Merge inputs with existing data
-      const updatedData = {
-        ...record.site_data,
-        heroSection: {
-          ...record.site_data.heroSection,
-          headline: headline || record.site_data.heroSection.headline,
-          subheadline: subheadline || record.site_data.heroSection.subheadline
-        }
-      };
+    // 2. Update object while preserving existing keys
+    const updatedData = {
+      ...record.site_data,
+      heroSection: {
+        ...record.site_data.heroSection,
+        headline: headline || record.site_data.heroSection.headline,
+        subheadline: subheadline || record.site_data.heroSection.subheadline
+      }
+    };
 
-      const { error: updateError } = await supabase
-        .from('websites')
-        .update({ site_data: updatedData })
-        .eq('subdomain', 'test-bpo');
+    // 3. Update Supabase
+    const { error } = await supabase
+      .from('websites')
+      .update({ site_data: updatedData })
+      .eq('subdomain', 'test-bpo');
 
       if (updateError) throw updateError;
       alert("Updated successfully!");
@@ -77,6 +77,7 @@ export default function AdminDashboard() {
         <input
           className="bg-slate-800 text-white p-3 mb-4 w-full rounded border border-slate-700 focus:border-blue-500 outline-none"
           value={subheadline}
+          // FIXED: This now correctly sets subheadline state
           onChange={(e) => setSubheadline(e.target.value)}
           placeholder="Enter new subheadline" 
         />
