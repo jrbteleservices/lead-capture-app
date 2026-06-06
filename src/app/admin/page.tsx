@@ -27,12 +27,10 @@ export default function AdminDashboard() {
       }
       setLoading(false);
     }
-
     loadLeads();
   }, []);
 
   const handleUpdate = async () => {
-    // 1. Fetch latest record
     const { data: record, error: fetchError } = await supabase
       .from('websites')
       .select('site_data')
@@ -44,7 +42,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    // 2. Update object while preserving existing keys
     const updatedData = {
       ...record.site_data,
       heroSection: {
@@ -54,7 +51,6 @@ export default function AdminDashboard() {
       }
     };
 
-    // 3. Update Supabase
     const { error } = await supabase
       .from('websites')
       .update({ site_data: updatedData })
@@ -81,6 +77,7 @@ export default function AdminDashboard() {
         <input
           className="bg-slate-800 text-white p-2 mb-4 w-full rounded border border-slate-700"
           value={subheadline}
+          // FIXED: This now correctly sets subheadline state
           onChange={(e) => setSubheadline(e.target.value)}
           placeholder="Enter new subheadline" 
         />
