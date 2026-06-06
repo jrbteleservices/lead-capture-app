@@ -78,6 +78,7 @@ export default function AdminDashboard() {
         <input
           className="bg-slate-800 text-white p-3 mb-4 w-full rounded border border-slate-700 focus:border-blue-500 outline-none"
           value={subheadline}
+          // Change this line from setHeadline to setSubheadline
           onChange={(e) => setSubheadline(e.target.value)}
           placeholder="Enter new subheadline" 
         />
