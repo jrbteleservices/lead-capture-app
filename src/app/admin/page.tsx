@@ -123,3 +123,19 @@ export default function AdminDashboard() {
     </div>
   );
 }
+'use client';
+import { toast } from 'sonner';
+
+// ... inside your save/update function
+const handleUpdate = async () => {
+  try {
+    // 1. Perform your database update
+    // const { data, error } = await supabase...
+    
+    // 2. Show the success toast
+    toast.success('Changes saved successfully!');
+  } catch (error) {
+    // 3. Show the error toast if something goes wrong
+    toast.error('Failed to save changes.');
+  }
+};
