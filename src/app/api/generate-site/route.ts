@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import { SYSTEM_PROMPT } from './prompt';
 import { supabase } from '../../../lib/supabase';
+
 function validateWebsiteData(data: any): boolean {
-  return (
+  return !!(
     data &&
     typeof data.businessName === 'string' &&
+    typeof data.industry === 'string' &&
     data.contact &&
+    typeof data.contact.phone === 'string' &&
     data.branding &&
-    Array.isArray(data.services)
+    typeof data.branding.primaryColor === 'string' &&
+    data.heroSection &&
+    typeof data.heroSection.headline === 'string' &&
+    Array.isArray(data.services) &&
+    data.services.length > 0 &&
+    data.aboutUs &&
+    typeof data.aboutUs.story === 'string'
   );
 }
 
@@ -55,14 +64,16 @@ export async function POST(req: Request) {
         const potentialData = JSON.parse(rawJSONResponse);
         if (validateWebsiteData(potentialData)) {
           parsedData = potentialData; 
+        } else {
+          console.warn(`Attempt ${attempts} output failed validation rules. Re-running loop...`);
         }
       } catch (e) {
-        console.warn(`Attempt ${attempts} failed parsing. Retrying self-healing loop...`);
+        console.warn(`Attempt ${attempts} failed hard parsing string. Retrying self-healing loop...`);
       }
     }
 
     if (!parsedData) {
-      throw new Error('AI Engine failed to return a validated structure.');
+      return NextResponse.json({ success: false, error: 'AI Engine failed to return a validated structure after self-healing attempts.' }, { status: 422 });
     }
 
     // 🚀 THE MAGIC MOMENT: Write this brand new website state straight to Supabase!
