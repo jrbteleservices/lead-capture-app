@@ -9,7 +9,7 @@ const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || 'YOUR_PUBLIC_KE
 
 export default function AutonomousStorefrontInstance() {
   const params = useParams();
-  const resolvedSubdomain = params?.resolvedSubdomain as string;
+  const [resolvedSubdomain, setResolvedSubdomain] = useState<string>('');
 
   const [siteData, setSiteData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -24,38 +24,47 @@ export default function AutonomousStorefrontInstance() {
   const [submittingLead, setSubmittingLead] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
 
+// Sync parameter extraction safely on mount execution
   useEffect(() => {
-    async function fetchTenantData() {
-      let currentSubdomain = resolvedSubdomain;
-
-      if (!currentSubdomain && typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        currentSubdomain = urlParams.get('resolvedSubdomain') || '';
-      }
-
-      if (!currentSubdomain) return;
-
-      try {
-        setLoading(true);
-        const { data: websiteRow, error: dbError } = await supabase
-          .from('websites')
-          .select('*')
-          .eq('subdomain', currentSubdomain.toLowerCase())
-          .single();
-
-        if (dbError || !websiteRow) {
-          setErrorState(`The business storefront "${currentSubdomain}" could not be located.`);
-        } else {
-          setSiteData(websiteRow);
-          setErrorState(null);
-        }
-      } catch (err) {
-        console.error('Data vector sync exception:', err);
-        setErrorState('Failed to process platform execution parameters.');
-      } finally {
+    if (typeof window !== 'undefined') {
+      const pathParam = params?.resolvedSubdomain as string;
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryParam = urlParams.get('resolvedSubdomain');
+      
+      // If a parameter exists, use it; otherwise leave it empty to trigger the root view
+      const activeSubdomain = pathParam || queryParam || '';
+      setResolvedSubdomain(activeSubdomain);
+      
+      // If we are explicitly at the root domain without parameters, stop the loading screen
+      if (!activeSubdomain) {
         setLoading(false);
       }
     }
+  }, [params]);
+
+  useEffect(() => {
+    const fetchTenantData = async () => {
+      if (!resolvedSubdomain) return;
+
+      setLoading(true);
+      setErrorState(null);
+
+      try {
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('subdomain', resolvedSubdomain)
+          .single();
+
+        if (error) throw error;
+        setSiteData(data);
+      } catch (fetchError: any) {
+        console.error('Tenant data fetch error:', fetchError);
+        setErrorState(fetchError?.message || 'Unable to load tenant data.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchTenantData();
   }, [resolvedSubdomain]);
@@ -124,7 +133,39 @@ export default function AutonomousStorefrontInstance() {
       setSubmittingLead(false);
     }
   };
+// If no tenant parameters are found in the query or path, route straight to your main agency portal
+  if (!resolvedSubdomain && !loading) {
+    return (
+      <div className="min-h-screen bg-[#030712] text-white p-8 flex flex-col items-center justify-center font-sans antialiased">
+        <div className="max-w-xl text-center space-y-6 border border-slate-900 bg-slate-950 p-10 rounded-3xl shadow-2xl">
+          <span className="inline-block text-xs font-mono font-bold tracking-widest px-3 py-1 rounded-full uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Main Agency Router Root
+          </span>
+          <h1 className="text-4xl font-black tracking-tight text-emerald-400">
+            APEX CONTACT SOLUTIONS
+          </h1>
+          <p className="text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+            Enterprise B2B Appointment Setting, AI Voice Agent Automation, and Lead Generation Systems engineered around speed and high-level human intelligence workflows.
+          </p>
+          <div className="pt-2">
+            <span className="px-3 py-1.5 bg-slate-900 text-[10px] font-mono tracking-wider text-slate-500 rounded-lg border border-slate-800">
+              STATUS: LISTENING FOR TENANT SECTORS
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Your existing loading block follows cleanly beneath it:
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 font-mono text-xs tracking-wider">
+        <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3" />
+        PARSING ISOLATED TENANT VECTORS...
+      </div>
+    );
+  }
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 font-mono text-xs tracking-wider">
