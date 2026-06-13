@@ -1,40 +1,50 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone();
-  const hostname = request.headers.get('host') || '';
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl.clone();
+  const hostname = req.headers.get('host') || '';
 
-  // 1. Instantly skip internal asset payloads, APIs, and administrative modules
-  if (
-    url.pathname.startsWith('/_next') ||
-    url.pathname.startsWith('/api') ||
-    url.pathname.startsWith('/admin') ||
-    url.pathname.includes('.')
-  ) {
-    return NextResponse.next();
-  }
+  // 1. Identify environment parameters
+  const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+  const baseDomain = 'apexcontactsolutions.com'; 
 
-  // 2. Isolate multi-tenant link extensions cleanly
   let subdomain = '';
-  if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
+
+  if (isLocalhost) {
+    // Local Testing Mode: Extract the query string explicitly
+    const querySubdomain = url.searchParams.get('resolvedSubdomain');
+    if (querySubdomain) {
+      subdomain = querySubdomain.toLowerCase();
+    }
+  } else {
+    // Production Cloudflare/Vercel Mode: Parse DNS subdomain splits
     const parts = hostname.split('.');
-    if (parts.length > 2) {
+    if (parts.length > 2 && !hostname.includes('www.' + baseDomain)) {
       subdomain = parts[0].toLowerCase();
     }
   }
 
-  // 3. Rewrite internal server routing locations for valid link addresses
-  if (subdomain && subdomain !== 'www') {
-    // Transparently passes the tenant parameters down to the core layout
-    url.pathname = `/_subdomain/${subdomain}${url.pathname}`;
+  // 2. Strict Routing Logic Block
+  // If no valid custom subdomain is active, let Next.js serve the native root page layout natively
+  if (!subdomain || subdomain === 'www') {
+    return NextResponse.next();
+  }
+
+  // 3. Prevent loop hooks on standard asset dependencies
+  if (
+    !url.pathname.startsWith('/_next') && 
+    !url.pathname.startsWith('/api') &&
+    !url.pathname.includes('.')
+  ) {
+    // Rewrite path mapping directly into our dynamic folder tree
+    url.pathname = `/${subdomain}${url.pathname}`;
     return NextResponse.rewrite(url);
   }
 
   return NextResponse.next();
 }
 
+// Intercept all structural content layers efficiently
 export const config = {
-  // Global path matcher profiles
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

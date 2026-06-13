@@ -30,18 +30,3 @@ export default function LoginPage() {
     </div>
   );
 }
-'use client';
-import { toast } from 'sonner'; // Add this import
-
-// ... inside your handleUpdate function:
-const handleUpdate = async () => {
-  try {
-    // Your existing Supabase update logic here...
-    
-    // On success:
-    toast.success('Changes saved successfully!');
-  } catch (error) {
-    // On failure:
-    toast.error('Failed to save changes.');
-  }
-};
