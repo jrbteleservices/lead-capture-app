@@ -43,34 +43,40 @@ function DynamicStorefrontContent() {
 
   useEffect(() => {
     const fetchTenantData = async () => {
-      if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
 
-      if (!resolvedSubdomain) {
-        setSiteData(null);
-        setLoading(false);
-        return;
-      }
+  if (!resolvedSubdomain) {
+    setSiteData(null);
+    setLoading(false);
+    return;
+  }
 
-      setLoading(true);
-      setErrorState(null);
+  setLoading(true);
+  setErrorState(null);
 
-      try {
-        const { data, error } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('subdomain', resolvedSubdomain.toLowerCase())
-          .single();
+  try {
+    // FIX: Remove .single() and fetch the array
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('subdomain', resolvedSubdomain.toLowerCase());
 
-        if (error) throw error;
-        setSiteData(data);
-      } catch (fetchError: any) {
-        console.error('Tenant extraction error:', fetchError);
-        setSiteData(null);
-        setErrorState(fetchError?.message || 'Unable to locate tenant registration record.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (error) throw error;
+    
+    // FIX: Check if the array is empty
+    if (!data || data.length === 0) {
+      throw new Error(`Storefront sector "${resolvedSubdomain}" not registered.`);
+    }
+
+    setSiteData(data[0]); // Use the first item safely
+  } catch (fetchError: any) {
+    console.error('Tenant extraction error:', fetchError);
+    setSiteData(null);
+    setErrorState(fetchError?.message || 'Unable to locate tenant registration record.');
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchTenantData();
   }, [resolvedSubdomain]);

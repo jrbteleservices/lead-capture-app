@@ -2,8 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import Vapi from '@vapi-ai/web';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 // Safely initialize Vapi fallback
 const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || 'YOUR_PUBLIC_KEY_FALLBACK');
@@ -60,53 +65,23 @@ function AgencyMainContent() {
 
   const handleAgencyLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 1. Guard check immediately before hitting any backend pipelines
-    if (!leadName || !leadEmail) return;
-
     setSubmittingLead(true);
     
     try {
-      // 2. Commit lead record data into Supabase
+      // INSTANT WRITE: Send to 'pending_leads'
       const { error } = await supabase
-        .from('leads')
-        .insert([
-          {
-            tenant_id: '85e22b61-913a-4053-81f2-005cfb5c7bf5', 
-            name: leadName,
-            email: leadEmail,
-            phone_number: leadPhone || null
-          }
-        ]);
+        .from('pending_leads')
+        .insert([{
+          name: leadName.trim(),
+          email: leadEmail.trim(),
+          phone: leadPhone.trim(),
+          status: 'PENDING'
+        }]);
 
       if (error) throw error;
-
-      // 3. Hand off parameters to the Gemini Low-Latency Matrix Analyzer
-      try {
-        const analysisRes = await fetch('/api/analyze-lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            leadName: leadName,
-            leadEmail: leadEmail,
-            leadPhone: leadPhone,
-            industryContext: 'Teletransformers AI Inbound Portal'
-          })
-        });
-        
-        const analysisData = await analysisRes.json();
-        window.console.log('Gemini Routing Matrix Signal:', analysisData.analysis);
-      } catch (aiErr) {
-        window.console.warn('Background AI analysis deferred safely:', aiErr);
-      }
-
-      // 4. Success UI Updates
-      setLeadSuccess(true);
-      setLeadName('');
-      setLeadEmail('');
-      setLeadPhone('');
+      setLeadSuccess(true); // User gets instant success
     } catch (err) {
-      window.console.warn('Agency processing exception caught safely:', err);
+      alert('Submission failed.');
     } finally {
       setSubmittingLead(false);
     }
@@ -197,59 +172,55 @@ function AgencyMainContent() {
       <section id="agency-contact" className="py-20 px-6 border-t border-slate-900 bg-slate-950/20">
         <div className="max-w-md mx-auto border border-slate-900 rounded-3xl p-8 shadow-2xl bg-slate-950/60 backdrop-blur-sm">
           <h2 className="text-xl font-black tracking-tight text-white mb-1">Scale Your Performance Routing</h2>
-          <p className="text-xs text-slate-500 mb-6 font-medium">Connect parameters directly to deploy targeted call routing across our network lanes.</p>
-          
-          {leadSuccess ? (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl text-center text-xs font-mono font-bold text-emerald-400">
-              Pipeline Parameters Logged. Initializing Diagnostic Validation Loops!
+          <p className="text-xs text-slate-500 mb-6 font-medium">Connect parameters and qualified leads directly into your voice automation pipeline.</p>
+          <form onSubmit={handleAgencyLeadSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs uppercase tracking-widest text-slate-400">Full Name</label>
+              <input
+                value={leadName}
+                onChange={(e) => setLeadName(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                placeholder="Optional / Prospect Name"
+              />
             </div>
-          ) : (
-            <form onSubmit={handleAgencyLeadSubmit} className="space-y-4">
-              <input 
-                type="text" 
-                placeholder="Representative Name" 
-                required 
-                value={leadName} 
-                onChange={(e) => setLeadName(e.target.value)} 
-                className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-slate-700 outline-none rounded-xl text-xs font-medium text-white placeholder-slate-500" 
+            <div>
+              <label className="text-xs uppercase tracking-widest text-slate-400">Email</label>
+              <input
+                value={leadEmail}
+                onChange={(e) => setLeadEmail(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                placeholder="Optional / prospect@example.com"
               />
-              <input 
-                type="email" 
-                placeholder="Corporate Email Address" 
-                required 
-                value={leadEmail} 
-                onChange={(e) => setLeadEmail(e.target.value)} 
-                className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-slate-700 outline-none rounded-xl text-xs font-medium text-white placeholder-slate-500" 
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-widest text-slate-400">Phone</label>
+              <input
+                value={leadPhone}
+                onChange={(e) => setLeadPhone(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                placeholder="+1 (555) 123-4567"
               />
-              <input 
-                type="tel" 
-                placeholder="System Direct Phone Number" 
-                value={leadPhone} 
-                onChange={(e) => setLeadPhone(e.target.value)} 
-                className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-slate-700 outline-none rounded-xl text-xs font-medium text-white placeholder-slate-500" 
-              />
-              <button 
-                type="submit" 
-                disabled={submittingLead} 
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] transition-all rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md disabled:bg-slate-800 disabled:text-slate-500"
-              >
-                {submittingLead ? 'Ingesting Pipeline Vectors...' : 'Establish Network Line'}
-              </button>
-            </form>
-          )}
+            </div>
+            <button
+              type="submit"
+              disabled={submittingLead}
+              className="w-full inline-flex justify-center items-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+            >
+              {submittingLead ? 'Submitting...' : 'Send Lead to Pipeline'}
+            </button>
+            {leadSuccess && (
+              <p className="text-sm text-emerald-300">Lead submitted successfully. Our team will follow up shortly.</p>
+            )}
+          </form>
         </div>
       </section>
-
-      <footer className="py-10 text-center text-[10px] font-mono tracking-widest text-slate-600 uppercase border-t border-slate-900">
-        System Routing Console • Teletransformers AI Infrastructure Ltd
-      </footer>
     </div>
   );
 }
 
-export default function MainAgencyHomePage() {
+export default function Page() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#030712] flex items-center justify-center text-slate-600 font-mono text-xs uppercase tracking-widest">Warming Network Nodes...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#030712] text-slate-100 flex items-center justify-center">Loading...</div>}>
       <AgencyMainContent />
     </Suspense>
   );
